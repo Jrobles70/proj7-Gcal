@@ -6,6 +6,7 @@ import uuid
 
 import json
 import logging
+from datetime import datetime
 
 # Date handling 
 import arrow # Replacement for datetime, based on moment.js
@@ -292,17 +293,19 @@ def list_calendars(service):
     the primary calendar first, and selected (that is, displayed in
     Google Calendars web app) calendars before unselected calendars.
     """
-    app.logger.debug("Entering list_calendars")  
+    app.logger.debug("Entering list_calendars")
     calendar_list = service.calendarList().list().execute()["items"]
     result = [ ]
     for cal in calendar_list:
         kind = cal["kind"]
-        id = cal["id"]
-        if "description" in cal: 
+        cal_id = cal["id"]
+
+        if "description" in cal:
             desc = cal["description"]
         else:
             desc = "(no description)"
         summary = cal["summary"]
+        #print(cal['selected'])
         # Optional binary attributes with False as default
         selected = ("selected" in cal) and cal["selected"]
         primary = ("primary" in cal) and cal["primary"]
@@ -310,12 +313,25 @@ def list_calendars(service):
 
         result.append(
           { "kind": kind,
-            "id": id,
+            "id": cal_id,
             "summary": summary,
             "selected": selected,
             "primary": primary
             })
+
+        list_events(service, cal_id)
+
     return sorted(result, key=cal_sort_key)
+
+
+def list_events(service, cal_id):
+    page_token = None
+    while True:
+        event_list = service.events().list(calendarId=cal_id, singleEvents=True, orderBy='startTime', pageToken=page_token, timeMin='2017-11-10T00:00:00-00:00', timeMax='2017-11-16T00:00:00-00:00').execute()
+        flask.g.events = event_list['items']
+        page_token = event_list.get('nextPageToken')
+        if not page_token:
+            break
 
 
 def cal_sort_key( cal ):
