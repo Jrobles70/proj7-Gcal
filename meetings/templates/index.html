@@ -93,7 +93,7 @@
   {% for cal in g.calendars if cal.selected %}
           <div class="col-md-4">
 	   {{ cal.summary }}
-     {% for event in g.events %}
+     {% for event in cal.events %}
           <div class="event"> {{ event.summary }} </div>
      {% endfor %}
           </div>

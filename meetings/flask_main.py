@@ -309,30 +309,42 @@ def list_calendars(service):
         # Optional binary attributes with False as default
         selected = ("selected" in cal) and cal["selected"]
         primary = ("primary" in cal) and cal["primary"]
-        
+        events = list_events(service, cal_id)
 
         result.append(
           { "kind": kind,
             "id": cal_id,
             "summary": summary,
             "selected": selected,
-            "primary": primary
+            "primary": primary,
+            "events": events
             })
-
-        list_events(service, cal_id)
 
     return sorted(result, key=cal_sort_key)
 
 
 def list_events(service, cal_id):
     page_token = None
+    result = []
+    begin = flask.session["begin_date"]
+    end = flask.session["end_date"]
+    beginTime = flask.session["begin_time"]
+    endTime = flask.session["end_time"]
+    min = arrow.get(begin).format('YYYY-MM-DD') + "T" + arrow.get(beginTime).format("HH:mm:ssZZ")
+    #The reason I shifted 1 second here is because the max in non inclusive so I moved the time up to include the end
+    #Time
+    max = arrow.get(end).format('YYYY-MM-DD') + "T" + arrow.get(endTime).shift(seconds= +1).format("HH:mm:ssZZ")
+
     while True:
-        event_list = service.events().list(calendarId=cal_id, singleEvents=True, orderBy='startTime', pageToken=page_token, timeMin='2017-11-10T00:00:00-00:00', timeMax='2017-11-16T00:00:00-00:00').execute()
-        flask.g.events = event_list['items']
+        event_list = service.events().list(calendarId=cal_id, singleEvents=True, orderBy='startTime', pageToken=page_token, timeMin=min, timeMax=max).execute()
+        for event in event_list['items']:
+            result.append(event)
+            if "transparency" not in event:
+                event["transparency"] = 'Busy'
         page_token = event_list.get('nextPageToken')
         if not page_token:
             break
-
+    return result
 
 def cal_sort_key( cal ):
     """
